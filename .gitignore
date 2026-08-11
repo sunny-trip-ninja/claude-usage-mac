@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Generated application and release artifacts
+dist/
+release/
+*.pkg
+*.dmg
+*.xcarchive/
+*.component.pkg
+
+# Signing and notarization files
+*.p12
+*.provisionprofile
+*.mobileprovision
+notarytool-log.json
+notarization-log.json
+
+# Xcode user and build state
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.xccheckout
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor settings
+.idea/
+.vscode/
+*.swp
+*~
+
+# tmp files
+scripts/generate-documentation-screenshots.sh
