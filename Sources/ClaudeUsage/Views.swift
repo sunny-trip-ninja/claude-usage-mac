@@ -103,7 +103,7 @@ struct UsagePopover: View {
             }
             .padding(14)
         }
-        .frame(maxHeight: 560)
+        .frame(minHeight: 160, maxHeight: 560)
     }
 
     private var emptyState: some View {
