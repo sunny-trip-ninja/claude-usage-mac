@@ -96,7 +96,7 @@ struct UsagePopover: View {
 
     private var accountList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            VStack(spacing: 12) {
                 ForEach(state.accounts) { account in
                     AccountCard(account: account)
                 }
