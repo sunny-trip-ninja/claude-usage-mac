@@ -16,11 +16,22 @@ final class AppState: ObservableObject {
     @Published private(set) var refreshing: Set<UUID> = []
     @Published var globalError: String?
     @Published private(set) var pendingOAuth: PendingOAuth?
+    @Published var compactMode: Bool {
+        didSet { defaults.set(compactMode, forKey: Self.compactModeDefaultsKey) }
+    }
 
-    private let defaultsKey = "accounts.v1"
+    private static let accountsDefaultsKey = "accounts.v1"
+    private static let compactModeDefaultsKey = "compactMode"
+    private let defaults: UserDefaults
     private let client = AnthropicClient()
 
-    init(loadPersistedAccounts: Bool = true, startBackgroundTasks: Bool = true) {
+    init(
+        loadPersistedAccounts: Bool = true,
+        startBackgroundTasks: Bool = true,
+        defaults: UserDefaults = .standard
+    ) {
+        self.defaults = defaults
+        compactMode = defaults.bool(forKey: Self.compactModeDefaultsKey)
         if startBackgroundTasks {
             NSApplication.shared.setActivationPolicy(.accessory)
         }
@@ -172,13 +183,13 @@ final class AppState: ObservableObject {
     }
 
     private func loadAccounts() {
-        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+        guard let data = defaults.data(forKey: Self.accountsDefaultsKey),
               let decoded = try? JSONDecoder().decode([Account].self, from: data) else { return }
         accounts = decoded
     }
 
     private func persistAccounts() {
         guard let data = try? JSONEncoder().encode(accounts) else { return }
-        UserDefaults.standard.set(data, forKey: defaultsKey)
+        defaults.set(data, forKey: Self.accountsDefaultsKey)
     }
 }

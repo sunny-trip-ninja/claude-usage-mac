@@ -28,6 +28,10 @@ struct UsagePopover: View {
         _addMode = State(initialValue: initialAddMode)
     }
 
+    private var usesCompactLayout: Bool {
+        state.compactMode && addMode == nil && state.pendingOAuth == nil && !state.accounts.isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -40,7 +44,7 @@ struct UsagePopover: View {
             Divider()
             footer
         }
-        .frame(width: 410)
+        .frame(width: usesCompactLayout ? 260 : 410)
     }
 
     @ViewBuilder
@@ -65,7 +69,9 @@ struct UsagePopover: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Claude Usage").font(.headline)
-                Text("Personal limits and team activity").font(.caption).foregroundStyle(.secondary)
+                if !usesCompactLayout {
+                    Text("Personal limits and team activity").font(.caption).foregroundStyle(.secondary)
+                }
             }
             Spacer()
             Button {
@@ -76,7 +82,8 @@ struct UsagePopover: View {
             .buttonStyle(.plain)
             .help("Refresh")
         }
-        .padding(14)
+        .padding(.horizontal, usesCompactLayout ? 12 : 14)
+        .padding(.vertical, usesCompactLayout ? 7 : 14)
     }
 
     private func errorBanner(_ message: String) -> some View {
@@ -94,18 +101,38 @@ struct UsagePopover: View {
         .background(.orange.opacity(0.08))
     }
 
+    @ViewBuilder
     private var accountList: some View {
-        Group {
-            if state.accounts.count == 1 {
-                accountCards
-            } else {
-                ScrollView {
+        if usesCompactLayout {
+            ScrollView {
+                compactAccountRows
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollIndicators(.hidden)
+            .frame(height: min(CGFloat(state.accounts.count * 26 + 6), 162))
+        } else {
+            Group {
+                if state.accounts.count == 1 {
                     accountCards
+                } else {
+                    ScrollView {
+                        accountCards
+                    }
+                    .scrollBounceBehavior(.basedOnSize)
                 }
-                .scrollBounceBehavior(.basedOnSize)
+            }
+            .frame(height: 160)
+        }
+    }
+
+    private var compactAccountRows: some View {
+        VStack(spacing: 0) {
+            ForEach(state.accounts) { account in
+                CompactAccountRow(account: account)
             }
         }
-        .frame(height: 160)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 3)
     }
 
     private var accountCards: some View {
@@ -146,17 +173,158 @@ struct UsagePopover: View {
     }
 
     private var footer: some View {
-        HStack {
-            if addMode == nil && state.pendingOAuth == nil && !state.accounts.isEmpty {
-                Button { addMode = .chooser } label: {
-                    Label("Add account", systemImage: "plus")
+        ZStack {
+            HStack {
+                if addMode == nil && state.pendingOAuth == nil && !state.accounts.isEmpty {
+                    Button { addMode = .chooser } label: {
+                        if usesCompactLayout {
+                            Image(systemName: "plus")
+                        } else {
+                            Label("Add account", systemImage: "plus")
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add account")
+                    .accessibilityLabel("Add account")
                 }
-                .buttonStyle(.plain)
+                Spacer()
+                Button("Quit") { state.quit() }.buttonStyle(.plain).foregroundStyle(.secondary)
             }
-            Spacer()
-            Button("Quit") { state.quit() }.buttonStyle(.plain).foregroundStyle(.secondary)
+
+            if addMode == nil && state.pendingOAuth == nil {
+                HStack(spacing: 5) {
+                    Text("Compact")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Toggle("Compact mode", isOn: $state.compactMode)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .labelsHidden()
+                        .help("Compact mode")
+                }
+            }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, usesCompactLayout ? 7 : 9)
+    }
+}
+
+private struct CompactAccountRow: View {
+    @EnvironmentObject private var state: AppState
+    let account: Account
+    @State private var confirmingRemoval = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(account.name)
+                .font(.system(size: 13))
+                .fontWeight(.medium)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if state.refreshing.contains(account.id) {
+                ProgressView().controlSize(.mini)
+            }
+
+            summary
+                .frame(width: 136, alignment: .trailing)
+
+            if state.errors[account.id] != nil {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .help(state.errors[account.id] ?? "Refresh failed")
+            }
+
+            Button { confirmingRemoval = true } label: {
+                Image(systemName: "trash").foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("Remove account")
+        }
+        .frame(height: 26)
+        .alert("Remove \(account.name)?", isPresented: $confirmingRemoval) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) { state.remove(account) }
+        } message: {
+            Text("This removes the account and its saved credential.")
+        }
+    }
+
+    @ViewBuilder
+    private var summary: some View {
+        if let snapshot = state.snapshots[account.id] {
+            switch snapshot {
+            case .plan(let usage):
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    HStack(spacing: 4) {
+                        metric("S", window: usage.fiveHour, now: context.date)
+                        metric("W", window: usage.sevenDay, now: context.date)
+                    }
+                }
+            case .team(let usage):
+                Text("· \(usage.totalTokens.formatted(.number.notation(.compactName))) tokens")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        } else {
+            if account.kind == .claudePlan {
+                HStack(spacing: 4) {
+                    metric("S", window: nil, now: .now)
+                    metric("W", window: nil, now: .now)
+                }
+            } else {
+                Text("— tokens")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func metric(_ label: String, window: LimitWindow?, now: Date) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundStyle(.tertiary)
+            Text(percent(window))
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .monospacedDigit()
+                .frame(width: 25, alignment: .trailing)
+            if let reset = window?.resetsAt {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 7, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                Text(compactDuration(until: reset, from: now))
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            } else {
+                Text("—")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(width: 66, alignment: .leading)
+    }
+
+    private func compactDuration(until reset: Date, from now: Date) -> String {
+        let seconds = reset.timeIntervalSince(now)
+        guard seconds > 0 else { return "now" }
+        if seconds < 3_600 {
+            return "\(max(1, Int(seconds / 60)))m"
+        }
+        if seconds < 86_400 {
+            return "\(max(1, Int(seconds / 3_600)))h"
+        }
+        return "\(max(1, Int(seconds / 86_400)))d"
+    }
+
+    private func percent(_ window: LimitWindow?) -> String {
+        guard let window else { return "—" }
+        return "\(Int(window.utilization.rounded()))%"
     }
 }
 

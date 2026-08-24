@@ -5,6 +5,29 @@ import XCTest
 
 final class DocumentationScreenshotsTests: XCTestCase {
     @MainActor
+    func testCompactModePersists() throws {
+        let suiteName = "ClaudeUsageTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let state = AppState(
+            loadPersistedAccounts: false,
+            startBackgroundTasks: false,
+            defaults: defaults
+        )
+        XCTAssertFalse(state.compactMode)
+
+        state.compactMode = true
+
+        let restoredState = AppState(
+            loadPersistedAccounts: false,
+            startBackgroundTasks: false,
+            defaults: defaults
+        )
+        XCTAssertTrue(restoredState.compactMode)
+    }
+
+    @MainActor
     func testGenerateDocumentationScreenshots() throws {
         guard let destination = ProcessInfo.processInfo.environment["DOC_SCREENSHOT_DIR"] else {
             throw XCTSkip("Set DOC_SCREENSHOT_DIR to generate README screenshots.")
