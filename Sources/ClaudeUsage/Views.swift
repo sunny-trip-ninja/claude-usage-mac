@@ -95,15 +95,26 @@ struct UsagePopover: View {
     }
 
     private var accountList: some View {
-        ScrollView {
-            VStack(spacing: 12) {
-                ForEach(state.accounts) { account in
-                    AccountCard(account: account)
+        Group {
+            if state.accounts.count == 1 {
+                accountCards
+            } else {
+                ScrollView {
+                    accountCards
                 }
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .padding(14)
         }
-        .frame(minHeight: 160, maxHeight: 560)
+        .frame(height: 160)
+    }
+
+    private var accountCards: some View {
+        VStack(spacing: 12) {
+            ForEach(state.accounts) { account in
+                AccountCard(account: account)
+            }
+        }
+        .padding(14)
     }
 
     private var emptyState: some View {
@@ -496,24 +507,26 @@ private struct UsageBar: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            HStack {
+            HStack(spacing: 8) {
                 Text(title).font(.caption).fontWeight(.medium)
-                Spacer()
+                Spacer(minLength: 8)
+                if let reset = window.resetsAt {
+                    resetLabel(reset)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
                 Text("\(Int(window.utilization.rounded()))% used").font(.caption).monospacedDigit()
             }
             ProgressView(value: window.utilization, total: 100).tint(color)
-            if let reset = window.resetsAt {
-                HStack {
-                    Spacer()
-                    if showsResetTime {
-                        Text("Resets at \(reset, format: .dateTime.hour().minute()) · \(reset, format: .relative(presentation: .named))")
-                    } else {
-                        Text("Resets \(reset, format: .relative(presentation: .named))")
-                    }
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            }
+        }
+    }
+
+    private func resetLabel(_ reset: Date) -> Text {
+        if showsResetTime {
+            Text("Resets at \(reset, format: .dateTime.hour().minute()) · \(reset, format: .relative(presentation: .named))")
+        } else {
+            Text("Resets \(reset, format: .relative(presentation: .named))")
         }
     }
 }
