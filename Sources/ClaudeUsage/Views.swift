@@ -470,7 +470,9 @@ private struct PlanUsageView: View {
 
     var body: some View {
         VStack(spacing: 9) {
-            if let window = usage.fiveHour { UsageBar(title: "Session", window: window) }
+            if let window = usage.fiveHour {
+                UsageBar(title: "Session", window: window, showsResetTime: true)
+            }
             if let window = usage.sevenDay { UsageBar(title: "Weekly", window: window) }
             if let window = usage.sevenDaySonnet { UsageBar(title: "Sonnet weekly", window: window) }
             if let window = usage.sevenDayOpus { UsageBar(title: "Opus weekly", window: window) }
@@ -484,6 +486,7 @@ private struct PlanUsageView: View {
 private struct UsageBar: View {
     let title: String
     let window: LimitWindow
+    var showsResetTime = false
 
     var color: Color {
         if window.utilization >= 90 { return .red }
@@ -502,9 +505,14 @@ private struct UsageBar: View {
             if let reset = window.resetsAt {
                 HStack {
                     Spacer()
-                    Text("Resets \(reset, format: .relative(presentation: .named))")
-                        .font(.caption2).foregroundStyle(.secondary)
+                    if showsResetTime {
+                        Text("Resets at \(reset, format: .dateTime.hour().minute()) · \(reset, format: .relative(presentation: .named))")
+                    } else {
+                        Text("Resets \(reset, format: .relative(presentation: .named))")
+                    }
                 }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
         }
     }

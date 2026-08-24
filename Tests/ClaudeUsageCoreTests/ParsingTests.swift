@@ -23,6 +23,13 @@ import Testing
     #expect(LimitWindow(utilization: -4, resetsAt: nil).utilization == 0)
 }
 
+@Test func parsesResetDatesWithAndWithoutFractionalSeconds() throws {
+    let wholeSecond = try #require(AnthropicClient.parseDate("2026-04-24T03:00:00+00:00"))
+    let fractional = try #require(AnthropicClient.parseDate("2026-04-24T03:00:00.264681+00:00"))
+
+    #expect(abs(fractional.timeIntervalSince(wholeSecond) - 0.264681) < 0.000_001)
+}
+
 @Test func teamUsageTotalsMembers() {
     let usage = TeamUsage(members: [
         TeamMemberUsage(id: "1", name: "A", email: nil, totalTokens: 1_250, requests: 2),
