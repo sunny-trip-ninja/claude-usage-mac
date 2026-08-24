@@ -215,6 +215,17 @@ private struct CompactAccountRow: View {
     @State private var confirmingRemoval = false
 
     var body: some View {
+        Group {
+            if confirmingRemoval {
+                removalConfirmation
+            } else {
+                accountSummary
+            }
+        }
+        .frame(height: 26)
+    }
+
+    private var accountSummary: some View {
         HStack(spacing: 8) {
             Text(account.name)
                 .font(.system(size: 13))
@@ -242,13 +253,24 @@ private struct CompactAccountRow: View {
             .buttonStyle(.plain)
             .help("Remove account")
         }
-        .frame(height: 26)
-        .alert("Remove \(account.name)?", isPresented: $confirmingRemoval) {
-            Button("Cancel", role: .cancel) {}
+    }
+
+    private var removalConfirmation: some View {
+        HStack(spacing: 8) {
+            Text("Remove \(account.name)?")
+                .font(.caption)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Button("Cancel") { confirmingRemoval = false }
+                .buttonStyle(.borderless)
+                .controlSize(.mini)
             Button("Remove", role: .destructive) { state.remove(account) }
-        } message: {
-            Text("This removes the account and its saved credential.")
+                .buttonStyle(.borderless)
+                .controlSize(.mini)
+                .foregroundStyle(.red)
         }
+        .padding(.horizontal, 6)
+        .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
     }
 
     @ViewBuilder
